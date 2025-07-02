@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Dijkstra Visual</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.js"></script>
+    <link href="https://unpkg.com/vis-network@9.1.2/dist/vis-network.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<div class="container mt-4">
+    <h2 class="mb-4">🔍 Visualizador de Camino Mínimo (Dijkstra)</h2>
+    <form onsubmit="ejecutar(); return false;" class="row g-3">
+        <div class="col-md-4">
+            <label for="origen" class="form-label">Nodo Origen:</label>
+            <input id="origen" type="number" class="form-control" required>
+        </div>
+        <div class="col-md-4">
+            <label for="destino" class="form-label">Nodo Destino:</label>
+            <input id="destino" type="number" class="form-control" required>
+        </div>
+        <div class="col-md-4 align-self-end">
+            <button type="submit" class="btn btn-primary">Calcular Camino</button>
+        </div>
+    </form>
+
+    <div class="mt-4">
+        <h5 id="info-costo"></h5>
+        <div id="grafo" style="height: 500px; background: #fff; border: 1px solid #ccc;"></div>
+    </div>
+</div>
+
+<script>
+async function ejecutar() {
+    const o = document.getElementById("origen").value;
+    const d = document.getElementById("destino").value;
+    const res = await fetch(`/dijkstra/${o}/${d}`);
+    const data = await res.json();
+
+    if (data.error) {
+        document.getElementById("info-costo").textContent = data.error;
+        return;
+    }
+
+    document.getElementById("info-costo").textContent =
+        `🛣️ Costo total: ${data.costo} | Nodos recorridos: ${data.camino.length}`;
+
+    const nombres = data.nombres;
+    const nodes = new vis.DataSet(data.camino.map((n, i) => ({
+        id: n,
+        label: nombres[n] || ("ID " + n),
+        color: i === 0 ? "#198754" : (i === data.camino.length - 1 ? "#dc3545" : "#0dcaf0")
+    })));
+
+    const edges = [];
+    for (let i = 0; i < data.camino.length - 1; i++) {
+        edges.push({ from: data.camino[i], to: data.camino[i + 1], arrows: "to" });
+    }
+
+    new vis.Network(document.getElementById("grafo"), { nodes, edges }, {
+        physics: false,
+        nodes: { shape: "dot", size: 20 },
+        edges: { smooth: true }
+    });
+}
+</script>
+</body>
+</html>

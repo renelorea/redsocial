@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Red Social</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container mt-4">
+  <h1 class="mb-4">🌐 Red Social</h1>
+
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="/">📡 MiniRed</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#menuPrincipal">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+  
+      <div class="collapse navbar-collapse" id="menuPrincipal">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+  
+          <li class="nav-item">
+            <a class="nav-link" href="/red">🌐 Red Social</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/comparador">📊 Comparador</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/updatecomun">🔁 Actualizar</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/dijkstra">🗺️ Dijkstra</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/dfs">🌿 DFS</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/bfs">🌊 BFS</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/agregar_persona">👤 Agregar Persona</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/agregar_publicacion">📝 Agregar Publicación</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/publicaciones">📄 Ver Publicaciones</a>
+          </li>
+  
+        </ul>
+      </div>
+    </div>
+  </nav>
+  
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-primary text-white">
+      Personas registradas
+    </div>
+    <ul class="list-group list-group-flush">
+      {% if personas %}
+          {% for persona in personas %}
+              <li class="list-group-item">
+                  <strong>{{ persona.nombre }}</strong> — Edad: {{ persona.edad }} años — Ciudad: {{ persona.ciudad }}
+              </li>
+          {% endfor %}
+      {% else %}
+          <li class="list-group-item text-muted">No se encontraron personas.</li>
+      {% endif %}
+    </ul>
+  </div>
+
+  <div class="card mb-4 shadow-sm">
+    <div class="card-header bg-success text-white">
+      Publicaciones Recientes
+    </div>
+    <ul class="list-group list-group-flush">
+      {% for pub in publicaciones %}
+        <li class="list-group-item">
+          <strong>{{ pub.fecha }}</strong>: {{ pub.contenido }}
+        </li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <div class="d-grid gap-2 d-md-block">
+    <a href="/red" class="btn btn-outline-secondary me-2 mb-2">Ver Red Social</a>
+    <a href="/comparador" class="btn btn-outline-primary me-2 mb-2">Comparador</a>
+    <a href="/updatecomun" class="btn btn-outline-primary me-2 mb-2">Actualizar</a>
+    <a href="/dijkstra" class="btn btn-outline-warning me-2 mb-2">Dijkstra</a>
+    <a href="/dfs" class="btn btn-outline-info me-2 mb-2">DFS</a>
+    <a href="/bfs" class="btn btn-outline-dark me-2 mb-2">BFS</a>
+    <a href="/agregar_persona" class="btn btn-success me-2 mb-2">Agregar Persona</a>
+    <a href="/agregar_publicacion" class="btn btn-success me-2 mb-2">Agregar Publicación</a>
+    <a href="/publicaciones" class="btn btn-primary me-2 mb-2">Ver Publicaciones</a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
