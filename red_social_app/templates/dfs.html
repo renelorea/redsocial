@@ -14,38 +14,108 @@
         <label for="nodo" class="form-label">Nodo de inicio:</label>
         <input id="nodo" type="number" class="form-control" value="1">
         <button class="btn btn-primary mt-2" onclick="cargarDFS()">Ejecutar</button>
+        <div class="mt-4">
+            <a href="/admin" class="btn btn-secondary">← Regresar</a>
+          </div>
     </div>
+    <div id="alerta" class="alert alert-danger d-none" role="alert"></div>
+    <div id="spinner-carga" class="text-center d-none my-3">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Cargando...</span>
+        </div>
+        <p class="mt-2">Calculando recorrido DFS...</p>
+      </div>
+      
+
     <div id="grafico" style="height: 500px; background: #fff; border: 1px solid #ccc;"></div>
 </div>
 
 <script>
-async function cargarDFS() {
-    const nodo = document.getElementById("nodo").value;
-    const response = await fetch(`/dfs/${nodo}`);
-    const data = await response.json();
+    async function cargarDFS() {
+        const nodo = document.getElementById("nodo").value;
+        const alerta = document.getElementById("alerta");
+        const grafico = document.getElementById("grafico");
+        const spinner = document.getElementById("spinner-carga");
+      
+        alerta.classList.add("d-none");
+        spinner.classList.remove("d-none"); // Mostrar spinner
+        grafico.innerHTML = "";             // Limpiar grafo anterior
+      
+        try {
+          const response = await fetch(`/dfs/${nodo}`);
+          const data = await response.json();
+      
+          spinner.classList.add("d-none"); // Ocultar spinner
+      
+          if (!response.ok) {
+            mostrarError(data.error || "❌ Error inesperado");
+            return;
+          }
+      
+          renderGrafo(data.recorrido, data.nombres);
+        } catch (error) {
+          spinner.classList.add("d-none");
+          mostrarError("⚠️ Error de conexión al servidor");
+        }
+      }
 
-    // Crear nodos y aristas según recorrido
-    const nombres = data.nombres;
+      function renderGrafo(recorrido, nombres) {
+        const container = document.getElementById("grafico");
+      
+        const nodes = new vis.DataSet(); // vacíos al inicio
+        const edges = [];
+      
+        // Creamos los nodos con color apagado
+        recorrido.forEach((n) => {
+          nodes.add({
+            id: n,
+            label: nombres[n] || `ID ${n}`,
+            color: "#ccc"
+          });
+        });
+      
+        for (let i = 0; i < recorrido.length - 1; i++) {
+          edges.push({ from: recorrido[i], to: recorrido[i + 1], arrows: "to" });
+        }
+      
+        const network = new vis.Network(container, { nodes, edges }, {
+          nodes: { shape: "dot", size: 22, font: { size: 16 } },
+          edges: { smooth: true },
+          physics: false
+        });
+      
+        // 🔥 Animamos los nodos uno por uno
+        let paso = 0;
+        const intervalo = setInterval(() => {
+          if (paso >= recorrido.length) {
+            clearInterval(intervalo);
+            return;
+          }
+      
+          const id = recorrido[paso];
+          nodes.update({ id: id, color: "#17a2b8" }); // cambia color
+          paso++;
+        }, 500); // medio segundo entre pasos
+      }
+      
+      
 
-    const nodes = new vis.DataSet(data.recorrido.map((n, i) => ({
-        id: n,
-        label: nombres[n] || ("ID " + n),
-        color: i === 0 ? '#28a745' : '#17a2b8'
-    })));
 
-    
-    const edges = [];
-    for (let i = 0; i < data.recorrido.length - 1; i++) {
-        edges.push({ from: data.recorrido[i], to: data.recorrido[i + 1] });
+
+function mostrarError(mensaje) {
+    const alerta = document.getElementById("alerta");
+    alerta.textContent = mensaje;
+    alerta.classList.remove("d-none");
+
+    // Limpiar grafo visualmente
+    const grafico = document.getElementById("grafico");
+    if (grafico) {
+        grafico.innerHTML = ''; // borra el grafo actual
     }
-
-    const container = document.getElementById("grafico");
-    const network = new vis.Network(container, { nodes, edges }, {
-        nodes: { shape: "dot", size: 20, font: { size: 14 } },
-        edges: { arrows: "to", smooth: true },
-        physics: { stabilization: false }
-    });
-}
+  }
+  
+  
+  
 </script>
 </body>
 </html>

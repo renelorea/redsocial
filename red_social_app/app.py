@@ -295,10 +295,19 @@ def actualizar_objetos_en_lista(lista, criterio_busqueda, valor_busqueda, atribu
                 break # Si solo se debe actualizar el primero
 
     return contador_actualizados
+
 @app.route('/dfs/<int:origen>')
 def ejecutar_dfs(origen):
     G, nombres = construir_grafo_desde_bd()
+
+    if origen not in G:
+        return jsonify({"error": f"🚫 El nodo {origen} no existe en el grafo"}), 404
+
     recorrido = list(nx.dfs_preorder_nodes(G, source=origen))
+
+    if not recorrido:
+        return jsonify({"error": "⚠️ No se encontró ningún recorrido DFS desde este nodo"}), 404
+
     return jsonify({"recorrido": recorrido, "nombres": nombres})
 
 @app.route('/red')
