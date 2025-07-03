@@ -8,6 +8,7 @@ from mysql.connector import Error
 import heapq
 from collections import deque
 
+# ✅ Prueba de conexión inicial a la base de datos
 def probar_conexion():
     try:
         conexion = mysql.connector.connect(
@@ -26,21 +27,20 @@ def probar_conexion():
             conexion.close()
             print("🔌 Conexión cerrada")
 
-probar_conexion()
-
+# Flask inicial
 app = Flask(__name__)
+plt.switch_backend('Agg')  # Desactiva GUI de matplotlib (para backend web)
 
-plt.switch_backend('Agg') 
-
-
-
+# 🔧 Carga grafo desde la base de datos
 def construir_grafo_desde_bd():
     conn = get_db()
     cursor = conn.cursor()
-    
+
+    # Recupera nombres de personas
     cursor.execute("SELECT id, nombre FROM personas")
     nombres = dict(cursor.fetchall())
 
+    # Recupera relaciones y pesos entre personas
     cursor.execute("SELECT persona1_id, persona2_id, peso FROM cosas_en_comun")
     relaciones = cursor.fetchall()
     conn.close()
@@ -51,13 +51,11 @@ def construir_grafo_desde_bd():
 
     return G, nombres
 
-
+# Recorrido DFS en preorden
 def dfs_recorrido(grafo, origen):
     return list(nx.dfs_preorder_nodes(grafo, source=origen))
 
-
-
-
+# 🔢 Algoritmo de Dijkstra clásico
 def dijkstra(grafo, inicio):
     dist = {nodo: float('inf') for nodo in grafo}
     dist[inicio] = 0
@@ -74,8 +72,7 @@ def dijkstra(grafo, inicio):
 
     return dist
 
-
-
+# 🌀 BFS clásico con impresión de recorrido
 def bfs(grafo, inicio):
     visitado = set()
     cola = deque([inicio])
@@ -86,7 +83,8 @@ def bfs(grafo, inicio):
             print(f"🔍 Visitando: {nodo}")
             visitado.add(nodo)
             cola.extend([vecino for vecino in grafo[nodo] if vecino not in visitado])
-            
+
+# DFS recursivo simple
 def dfs(grafo, nodo, visitado=None):
     if visitado is None:
         visitado = set()
@@ -96,16 +94,14 @@ def dfs(grafo, nodo, visitado=None):
         if vecino not in visitado:
             dfs(grafo, vecino, visitado)
 
-
-
+# 🔄 Crea una conexión DB nueva
 def get_db():
-    conn = mysql.connector.connect(
+    return mysql.connector.connect(
         host='localhost',
         user='usercon',
         password='Admin2025',
         database='redsocial'
     )
-    return conn
 
 @app.route('/comparador')
 def comparador():
@@ -227,6 +223,9 @@ def crearCosasEnComun(idAutor,idUsuario,peso):
     conexion.commit()
     conexion.close()
 
+# --- FUNCIONES AUXILIARES PARA MANEJO DE LISTAS DE OBJETOS ---
+
+# 🔍 Busca objetos dentro de una lista (diccionarios o instancias) con base en un criterio y valor
 def buscar_objetos_en_lista(lista, criterio_busqueda, valor_busqueda, buscar_todos=False):
     """
     Busca objetos en una lista basándose en un criterio y un valor.
@@ -258,7 +257,7 @@ def buscar_objetos_en_lista(lista, criterio_busqueda, valor_busqueda, buscar_tod
     return resultados if buscar_todos else None
 
 # --- Función para Actualizar Objetos en una Lista ---
-
+# ✏️ Actualiza atributos o claves de objetos en una lista según coincidencia
 def actualizar_objetos_en_lista(lista, criterio_busqueda, valor_busqueda, atributo_a_actualizar, nuevo_valor, actualizar_todos=False):
     """
     Busca y actualiza objetos en una lista basándose en un criterio.
@@ -296,166 +295,214 @@ def actualizar_objetos_en_lista(lista, criterio_busqueda, valor_busqueda, atribu
 
     return contador_actualizados
 
+# 📍 Ruta para ejecutar DFS desde un nodo específico
 @app.route('/dfs/<int:origen>')
 def ejecutar_dfs(origen):
     G, nombres = construir_grafo_desde_bd()
 
+    # ⚠️ Validación: si el nodo no existe, retorna error 404
     if origen not in G:
         return jsonify({"error": f"🚫 El nodo {origen} no existe en el grafo"}), 404
 
     recorrido = list(nx.dfs_preorder_nodes(G, source=origen))
 
+    # ⚠️ Si el recorrido está vacío, se notifica al cliente
     if not recorrido:
         return jsonify({"error": "⚠️ No se encontró ningún recorrido DFS desde este nodo"}), 404
 
     return jsonify({"recorrido": recorrido, "nombres": nombres})
 
+# 📊 Ruta para construir y mostrar visualmente el grafo como una red
 @app.route('/red')
 def red():
     db = get_db()
     cursor = db.cursor(dictionary=True)
+
+    # 🔄 Consulta nodos (personas) y enlaces (intereses en común)
     cursor.execute("SELECT * FROM personas")
     personas = cursor.fetchall()
     cursor.execute("SELECT * FROM cosas_en_comun")
     enlaces = cursor.fetchall()
-    
-    if personas:
-        print(f"✅ Se encontraron {len(personas)} registros.")
-        for fila in personas:
-            print(fila)
 
+    # 🧠 Construcción del grafo con etiquetas
     G = nx.Graph()
     for p in personas:
         G.add_node(p["id"], label=p["nombre"])
     for e in enlaces:
         G.add_edge(e["persona1_id"], e["persona2_id"], interes=e["interes"])
 
+    # 🎨 Visualización del grafo
     pos = nx.spring_layout(G, seed=42)
     plt.figure(figsize=(6, 5))
-    nx.draw(G, pos, with_labels=True, labels=nx.get_node_attributes(G, 'label'),
-            node_color='skyblue', node_size=800, font_size=10)
+    nx.draw(
+        G, pos, with_labels=True,
+        labels=nx.get_node_attributes(G, 'label'),
+        node_color='skyblue', node_size=800, font_size=10
+    )
     plt.title("Red Social por Intereses")
     plt.savefig("static/red.png")
     plt.close()
 
     return render_template('red.html', imagen="static/red.png")
 
-
+# ➕ Ruta para agregar una nueva persona al sistema
 @app.route('/agregar_persona', methods=['GET', 'POST'])
 def agregar_persona():
     if request.method == 'POST':
+        # 📝 Recolecta datos del formulario
         nombre = request.form['nombre']
         edad = request.form['edad']
         ciudad = request.form['ciudad']
         usuario = request.form['usuario']
         password = request.form['password']
+
+        # 📥 Inserta en la base de datos
         conexion = get_db()
         cursor = conexion.cursor()
-        cursor.execute("INSERT INTO personas (nombre, edad,ciudad,usuario,password) VALUES (%s, %s,%s, %s,%s)", (nombre, edad,ciudad,usuario,password))
+        cursor.execute(
+            "INSERT INTO personas (nombre, edad, ciudad, usuario, password) VALUES (%s, %s, %s, %s, %s)",
+            (nombre, edad, ciudad, usuario, password)
+        )
         conexion.commit()
         conexion.close()
         return redirect('/')
     return render_template('agregar_persona.html')
 
+# 📝 Ruta para agregar una nueva publicación
 @app.route('/agregar_publicacion', methods=['GET', 'POST'])
 def agregar_publicacion():
     if request.method == 'POST':
         persona_id = request.form['persona_id']
         contenido = request.form['contenido']
-        conexion = get_db()
-        cursor = conexion.cursor()
         hoy = date.today()
         formateada = hoy.strftime("%Y-%m-%d")
-        cursor.execute("INSERT INTO publicaciones (id_autor, contenido,fecha) VALUES (%s, %s, %s)", (persona_id, contenido,formateada))
+
+        conexion = get_db()
+        cursor = conexion.cursor()
+        cursor.execute(
+            "INSERT INTO publicaciones (id_autor, contenido, fecha) VALUES (%s, %s, %s)",
+            (persona_id, contenido, formateada)
+        )
         conexion.commit()
         conexion.close()
         return redirect('/publicaciones')
     return render_template('agregar_publicacion.html')
 
+# 📄 Ruta para ver todas las publicaciones
 @app.route('/publicaciones')
 def publicaciones():
     conexion = get_db()
     cursor = conexion.cursor(dictionary=True)
+
+    # 📥 Consulta publicaciones y cuenta sus likes y dislikes asociados
     cursor.execute("""
         SELECT p.id, p.contenido, p.id_autor, p.fecha,
-                (SELECT COUNT(*) FROM likes WHERE publicacion_id = p.id) AS likes,
-           (SELECT COUNT(*) FROM dislikes WHERE publicacion_id = p.id) AS dislikes
+               (SELECT COUNT(*) FROM likes WHERE publicacion_id = p.id) AS likes,
+               (SELECT COUNT(*) FROM dislikes WHERE publicacion_id = p.id) AS dislikes
         FROM publicaciones p
         ORDER BY p.fecha DESC
     """)
     posts = cursor.fetchall()
+
+    # ✅ Opcional: impresión por consola para debug
     if posts:
         print(f"✅ Se encontraron {len(posts)} registros.")
         for fila in posts:
             print(fila)
+
     conexion.close()
     return render_template('publicaciones.html', publicaciones=posts)
 
+# 👍 Ruta para registrar un "like" desde un usuario a una publicación
 @app.route('/like/<int:publicacion_id>&<int:id_usuario>', methods=['POST'])
-def dar_like(publicacion_id,id_usuario):
+def dar_like(publicacion_id, id_usuario):
     conexion = get_db()
     cursor = conexion.cursor()
-    cursor.execute("INSERT INTO likes (publicacion_id,id_usuario) VALUES (%s,%s)", (publicacion_id,id_usuario))
+
+    # 🔘 Inserta registro en tabla "likes"
+    cursor.execute("INSERT INTO likes (publicacion_id, id_usuario) VALUES (%s, %s)", (publicacion_id, id_usuario))
     conexion.commit()
+
+    # 🔢 Obtiene nuevo total de likes para esa publicación
     cursor.execute("SELECT COUNT(*) FROM likes WHERE publicacion_id = %s", (publicacion_id,))
     total = cursor.fetchone()[0]
     conexion.close()
+
     return jsonify({"likes": total})
 
+
+# 👎 Ruta para registrar un "dislike" desde un usuario a una publicación
 @app.route('/dislike/<int:publicacion_id>&<int:id_usuario>', methods=['POST'])
-def dar_dislike(publicacion_id,id_usuario):
+def dar_dislike(publicacion_id, id_usuario):
     conexion = get_db()
     cursor = conexion.cursor()
-    cursor.execute("INSERT INTO dislikes (publicacion_id,id_usuario) VALUES (%s,%s)", (publicacion_id,id_usuario))
+
+    # 🔘 Inserta registro en tabla "dislikes"
+    cursor.execute("INSERT INTO dislikes (publicacion_id, id_usuario) VALUES (%s, %s)", (publicacion_id, id_usuario))
     conexion.commit()
+
+    # 🔢 Obtiene nuevo total de dislikes para esa publicación
     cursor.execute("SELECT COUNT(*) FROM dislikes WHERE publicacion_id = %s", (publicacion_id,))
     total = cursor.fetchone()[0]
     conexion.close()
+
     return jsonify({"dislikes": total})
 
 app.secret_key = 'supersecreto'
 
 
+# 🔐 Ruta principal para iniciar sesión
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
+
+        # 🔍 Verifica usuario en la base de datos
         db = get_db()
         cursor = db.cursor(dictionary=True)
         cursor.execute("SELECT * FROM personas WHERE usuario=%s AND password=%s", (email, password))
         usuario = cursor.fetchone()
         db.close()
+
         if usuario:
-            if usuario['usuario']=="admin":
-                return redirect('/admin')
+            if usuario['usuario'] == "admin":
+                return redirect('/admin')  # Redirección especial para admin
             else:
+                # 🧠 Se guarda sesión de usuario normal
                 session['usuario_id'] = usuario['id']
                 session['nombre'] = usuario['nombre']
                 return redirect('/publicaciones')
         else:
-            # insertar usuario
+            # ⚠️ Usuario no encontrado: muestra mensaje de advertencia
             flash("¡El usuario no existe o la contraseña es incorrecta!", "warning")
             return redirect('/')
+
     return render_template('login.html')
 
+
+# 🧾 Ruta para registrar un nuevo usuario (registro)
 @app.route('/registro', methods=['GET', 'POST'])
 def registro():
     if request.method == 'POST':
         nombre = request.form['nombre']
         email = request.form['email']
         password = request.form['password']
+
+        # 📥 Inserta nuevo usuario en la tabla "usuarios"
         db = get_db()
         cursor = db.cursor()
         cursor.execute("INSERT INTO usuarios (nombre, email, password) VALUES (%s, %s, %s)", (nombre, email, password))
         db.commit()
         db.close()
+
         return redirect('/')
     return render_template('registro.html')
 
+# 🔓 Ruta para cerrar sesión del usuario
 @app.route('/logout')
 def logout():
-    session.clear()
+    session.clear()  # 🧹 Limpia la sesión del usuario actual
     return redirect('/')
 
 
