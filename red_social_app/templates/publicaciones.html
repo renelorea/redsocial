@@ -56,7 +56,7 @@
             <div class="card mb-3 shadow-sm">
                 <div class="card-body">
                     <p class="card-text">{{ pub.contenido }}</p>
-                    <p class="text-muted small">📅 {{ pub.fecha }} | 👤 Persona ID: {{ pub.id_autor }}</p>
+                    <p class="text-muted small">📅 {{ pub.fecha }} | 👤 Creador: {{ pub.autor }}</p>
                     <button class="btn btn-outline-primary btn-sm" onclick="like({{ pub.id }},{{ session['usuario_id'] }})">
                         ❤️ Like <span id="like-{{ pub.id }}">{{ pub.likes }}</span>
                     </button>

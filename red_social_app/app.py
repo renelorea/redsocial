@@ -394,21 +394,22 @@ def publicaciones():
     conexion = get_db()
     cursor = conexion.cursor(dictionary=True)
 
-    # 📥 Consulta publicaciones y cuenta sus likes y dislikes asociados
+    # 📥 Consulta publicaciones con nombre del autor + conteo de likes y dislikes
     cursor.execute("""
-        SELECT p.id, p.contenido, p.id_autor, p.fecha,
+        SELECT p.id, p.contenido, p.id_autor, per.nombre AS autor, p.fecha,
                (SELECT COUNT(*) FROM likes WHERE publicacion_id = p.id) AS likes,
                (SELECT COUNT(*) FROM dislikes WHERE publicacion_id = p.id) AS dislikes
         FROM publicaciones p
+        JOIN personas per ON p.id_autor = per.id
         ORDER BY p.fecha DESC
     """)
     posts = cursor.fetchall()
 
-    # ✅ Opcional: impresión por consola para debug
+    # ✅ Impresión para depuración (opcional)
     if posts:
-        print(f"✅ Se encontraron {len(posts)} registros.")
+        print(f"✅ Se encontraron {len(posts)} publicaciones.")
         for fila in posts:
-            print(fila)
+            print(f"{fila['autor']}: {fila['contenido']}")
 
     conexion.close()
     return render_template('publicaciones.html', publicaciones=posts)
