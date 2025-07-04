@@ -6,6 +6,7 @@ import mysql.connector
 from datetime import date
 from mysql.connector import Error
 import heapq
+import os
 from collections import deque
 
 # ✅ Prueba de conexión inicial a la base de datos
@@ -164,9 +165,9 @@ def updatecomun():
     lista=[]
     db = get_db()
     cursor = db.cursor(dictionary=True)
-    cursor.execute("SELECT p.id,p.id_autor,l.id_usuario, COUNT(l.id) as peso FROM publicaciones p, likes l where p.id=l.publicacion_id group by 1 "+
-                   " UNION ALL "+
-                   "SELECT p.id,p.id_autor,d.id_usuario, COUNT(d.id) as peso FROM  publicaciones p, dislikes d where p.id=d.publicacion_id group by 1")
+    cursor.execute("""
+                   SELECT p.id,p.id_autor,l.id_usuario, COUNT(l.id) as peso FROM publicaciones p, interacciones l where p.id=l.publicacion_id group by 1,3 
+                   """)
     comunes = cursor.fetchall()
     acum=0
     if comunes:
@@ -217,6 +218,7 @@ def borrarCosasEnComun():
     conexion.close()
 
 def crearCosasEnComun(idAutor,idUsuario,peso):
+    print(f"autor: {idAutor} usuario:{idUsuario} peso: {peso}")
     conexion = get_db()
     cursor = conexion.cursor()
     cursor.execute("INSERT INTO cosas_en_comun (persona1_id, persona2_id, peso) VALUES (%s, %s, %s)", (idAutor, idUsuario,peso))
@@ -329,7 +331,7 @@ def red():
     for p in personas:
         G.add_node(p["id"], label=p["nombre"])
     for e in enlaces:
-        G.add_edge(e["persona1_id"], e["persona2_id"], interes=e["interes"])
+        G.add_edge(e["persona1_id"], e["persona2_id"], peso=e["peso"])
 
     # 🎨 Visualización del grafo
     pos = nx.spring_layout(G, seed=42)
@@ -339,8 +341,10 @@ def red():
         labels=nx.get_node_attributes(G, 'label'),
         node_color='skyblue', node_size=800, font_size=10
     )
+    absolute_path = os.path.join(os.path.dirname(__file__), 'static', 'red.png')
+    
     plt.title("Red Social por Intereses")
-    plt.savefig("static/red.png")
+    plt.savefig(absolute_path)
     plt.close()
 
     return render_template('red.html', imagen="static/red.png")
@@ -397,8 +401,8 @@ def publicaciones():
     # 📥 Consulta publicaciones con nombre del autor + conteo de likes y dislikes
     cursor.execute("""
         SELECT p.id, p.contenido, p.id_autor, per.nombre AS autor, p.fecha,
-               (SELECT COUNT(*) FROM likes WHERE publicacion_id = p.id) AS likes,
-               (SELECT COUNT(*) FROM dislikes WHERE publicacion_id = p.id) AS dislikes
+               (SELECT COUNT(*) FROM interacciones WHERE publicacion_id = p.id and tipo=1) AS likes,
+               (SELECT COUNT(*) FROM interacciones WHERE publicacion_id = p.id and tipo=2) AS dislikes
         FROM publicaciones p
         JOIN personas per ON p.id_autor = per.id
         ORDER BY p.fecha DESC
@@ -419,13 +423,15 @@ def publicaciones():
 def dar_like(publicacion_id, id_usuario):
     conexion = get_db()
     cursor = conexion.cursor()
+    l=1
+    d=2
 
     # 🔘 Inserta registro en tabla "likes"
-    cursor.execute("INSERT INTO likes (publicacion_id, id_usuario) VALUES (%s, %s)", (publicacion_id, id_usuario))
+    cursor.execute("INSERT INTO interacciones (publicacion_id, id_usuario,tipo) VALUES (%s, %s, %s)", (publicacion_id, id_usuario, l))
     conexion.commit()
 
     # 🔢 Obtiene nuevo total de likes para esa publicación
-    cursor.execute("SELECT COUNT(*) FROM likes WHERE publicacion_id = %s", (publicacion_id,))
+    cursor.execute("SELECT COUNT(*) FROM interacciones WHERE publicacion_id = %s", (publicacion_id,))
     total = cursor.fetchone()[0]
     conexion.close()
 
@@ -437,13 +443,14 @@ def dar_like(publicacion_id, id_usuario):
 def dar_dislike(publicacion_id, id_usuario):
     conexion = get_db()
     cursor = conexion.cursor()
+    d=2
 
     # 🔘 Inserta registro en tabla "dislikes"
-    cursor.execute("INSERT INTO dislikes (publicacion_id, id_usuario) VALUES (%s, %s)", (publicacion_id, id_usuario))
+    cursor.execute("INSERT INTO interacciones (publicacion_id, id_usuario,tipo) VALUES (%s, %s, %s)", (publicacion_id, id_usuario, d))
     conexion.commit()
 
     # 🔢 Obtiene nuevo total de dislikes para esa publicación
-    cursor.execute("SELECT COUNT(*) FROM dislikes WHERE publicacion_id = %s", (publicacion_id,))
+    cursor.execute("SELECT COUNT(*) FROM interacciones WHERE publicacion_id = %s", (publicacion_id,))
     total = cursor.fetchone()[0]
     conexion.close()
 
