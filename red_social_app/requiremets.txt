@@ -19,6 +19,7 @@ kiwisolver==1.4.8
 MarkupSafe==3.0.2
 matplotlib==3.10.3
 mysql-connector-python==9.3.0
+narwhals==1.45.0
 networkx==3.5
 numpy==2.3.0
 opencv-python==4.11.0.86
@@ -26,6 +27,7 @@ ortools==9.12.4544
 packaging==25.0
 pandas==2.3.0
 pillow==11.2.1
+plotly==6.2.0
 protobuf==5.29.5
 pydantic==2.11.5
 pydantic_core==2.33.2

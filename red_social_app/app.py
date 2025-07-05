@@ -2,21 +2,24 @@ from flask import Flask, render_template,jsonify,request, redirect, session, fla
 
 import networkx as nx
 import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 import mysql.connector
 from datetime import date
 from mysql.connector import Error
 import heapq
 import os
 from collections import deque
+from itertools import cycle
+import matplotlib.colors as mcolors
 
 # ✅ Prueba de conexión inicial a la base de datos
 def probar_conexion():
     try:
         conexion = mysql.connector.connect(
-            host='localhost',
-            user='usercon',
-            password='Admin2025',
-            database='redsocial'
+            host='srv563.hstgr.io',
+            user='u271403909_rene',
+            password='c*EX$3M7F^6',
+            database='u271403909_redsocial'
         )
         if conexion.is_connected():
             print("✅ Conexión exitosa a la base de datos")
@@ -98,10 +101,10 @@ def dfs(grafo, nodo, visitado=None):
 # 🔄 Crea una conexión DB nueva
 def get_db():
     return mysql.connector.connect(
-        host='localhost',
-        user='usercon',
-        password='Admin2025',
-        database='redsocial'
+        host='srv563.hstgr.io',
+        user='u271403909_rene',
+        password='c*EX$3M7F^6',
+        database='u271403909_redsocial'
     )
 
 @app.route('/comparador')
@@ -315,39 +318,6 @@ def ejecutar_dfs(origen):
     return jsonify({"recorrido": recorrido, "nombres": nombres})
 
 # 📊 Ruta para construir y mostrar visualmente el grafo como una red
-@app.route('/red')
-def red():
-    db = get_db()
-    cursor = db.cursor(dictionary=True)
-
-    # 🔄 Consulta nodos (personas) y enlaces (intereses en común)
-    cursor.execute("SELECT * FROM personas")
-    personas = cursor.fetchall()
-    cursor.execute("SELECT * FROM cosas_en_comun")
-    enlaces = cursor.fetchall()
-
-    # 🧠 Construcción del grafo con etiquetas
-    G = nx.Graph()
-    for p in personas:
-        G.add_node(p["id"], label=p["nombre"])
-    for e in enlaces:
-        G.add_edge(e["persona1_id"], e["persona2_id"], peso=e["peso"])
-
-    # 🎨 Visualización del grafo
-    pos = nx.spring_layout(G, seed=42)
-    plt.figure(figsize=(6, 5))
-    nx.draw(
-        G, pos, with_labels=True,
-        labels=nx.get_node_attributes(G, 'label'),
-        node_color='skyblue', node_size=800, font_size=10
-    )
-    absolute_path = os.path.join(os.path.dirname(__file__), 'static', 'red.png')
-    
-    plt.title("Red Social por Intereses")
-    plt.savefig(absolute_path)
-    plt.close()
-
-    return render_template('red.html', imagen="static/red.png")
 
 # ➕ Ruta para agregar una nueva persona al sistema
 @app.route('/agregar_persona', methods=['GET', 'POST'])
@@ -371,6 +341,100 @@ def agregar_persona():
         conexion.close()
         return redirect('/')
     return render_template('agregar_persona.html')
+
+@app.route('/red')
+def red():
+    import networkx as nx
+    import plotly.graph_objects as go
+    import os
+    from itertools import cycle
+    from flask import redirect, url_for
+
+    # 🎨 Paleta compatible con Plotly
+    css_colors = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728',
+        '#9467bd', '#8c564b', '#e377c2', '#7f7f7f',
+        '#bcbd22', '#17becf'
+    ]
+    paleta = cycle(css_colors)
+
+    db = get_db()
+    cursor = db.cursor(dictionary=True)
+
+    # 🔄 Datos desde la base
+    cursor.execute("SELECT * FROM personas")
+    personas = cursor.fetchall()
+    cursor.execute("SELECT * FROM cosas_en_comun")
+    enlaces = cursor.fetchall()
+
+    # 🧠 Construcción del grafo
+    G = nx.Graph()
+    for p in personas:
+        G.add_node(p["id"], label=p["nombre"])
+    for e in enlaces:
+        G.add_edge(e["persona1_id"], e["persona2_id"], peso=e["peso"])
+
+    # 📍 Posiciones
+    pos = nx.spring_layout(G, seed=42)
+
+    # 🔷 Aristas
+    edge_x, edge_y = [], []
+    for u, v in G.edges():
+        x0, y0 = pos[u]
+        x1, y1 = pos[v]
+        edge_x += [x0, x1, None]
+        edge_y += [y0, y1, None]
+
+    edge_trace = go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=0.5, color='#888'),
+        mode='lines',
+        hoverinfo='none'
+    )
+
+    # 🧩 Comunidades
+    comunidades = list(nx.connected_components(G))
+    colores = {}
+    for color, grupo in zip(paleta, comunidades):
+        for nodo in grupo:
+            colores[nodo] = color
+
+    # 🔝 Nodos con tamaño proporcional al grado
+    nodos_coloreados = []
+    for color in set(colores.values()):
+        nodos = [n for n in G.nodes() if colores[n] == color]
+        x, y = zip(*[pos[n] for n in nodos])
+        texto = [G.nodes[n]["label"] for n in nodos]
+        grados = [G.degree[n] for n in nodos]  # Tamaño dinámico
+
+        nodos_coloreados.append(go.Scatter(
+            x=x, y=y,
+            mode='markers+text',
+            marker=dict(
+                size=[8 + g * 4 for g in grados],  # Personaliza el escalado
+                color=color,
+                line=dict(width=1, color='black')
+            ),
+            text=texto,
+            textposition='top center',
+            hoverinfo='text'
+        ))
+
+    # 📊 Figura final
+    fig = go.Figure(data=[edge_trace] + nodos_coloreados)
+    fig.update_layout(
+        title='Red Social por Intereses (Tamaño ∝ Conectividad)',
+        showlegend=False,
+        hovermode='closest',
+        margin=dict(l=20, r=20, t=40, b=20)
+    )
+
+    # 💾 HTML interactivo
+    html_path = os.path.join('static', 'red_interactiva.html')
+    fig.write_html(html_path)
+
+    return redirect(url_for('static', filename='red_interactiva.html'))
+
 
 # 📝 Ruta para agregar una nueva publicación
 @app.route('/agregar_publicacion', methods=['GET', 'POST'])

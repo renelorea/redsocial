@@ -1,3 +1,3 @@
 ejecutar para instalas
 
-pip install -r requirements.tx
+pip install -r requirements.txt
